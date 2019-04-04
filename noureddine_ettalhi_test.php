@@ -98,35 +98,52 @@ function check_versions( $version1, $version2 ){
         if( !is_numeric($sub_version) ){
             throw new \Exception('Error : Sub-version should be numeric in argument1.');
         }
+        if( $sub_version < 0 ){
+            throw new \Exception('Error : Sub-version should be positive in argument1.');
+        }
     }
     foreach( $version2_arr as $sub_version ){
         if( !is_numeric($sub_version) ){
             throw new \Exception('Error : Sub-version should be numeric in argument2.');
         }
+        if( $sub_version < 0 ){
+            throw new \Exception('Error : Sub-version should be positive in argument2.');
+        }
     }
 
 
     // ............... Starts comparison here.
-    $idx = 0;
-    foreach( $version1_arr as $sub_version ){
+    for( $idx = 0; $idx < count($version1_arr); $idx++ ){
         if( !isset($version2_arr[$idx]) ){
-            return ( $sub_version > 0 )? 1 : 0;
+            if( $version1_arr[$idx] == 0 ){
+                continue;
+            } else {
+                return 1; // Greater
+            }
         }
-        if( $sub_version > $version2_arr[$idx] ){
+        if( $version1_arr[$idx] > $version2_arr[$idx] ){
             return 1; // Greater.
         }
-        if( $sub_version < $version2_arr[$idx] ){
+        if( $version1_arr[$idx] < $version2_arr[$idx] ){
             return -1; // Smaller.
         }
 
-        $idx++;
     }
 
-    if( !isset($version2_arr[$idx]) ){
-        return 0; // Equals.
-    } else {
-        return ( $version2_arr[$idx] > 0 )? -1 : 0;
+    if( !isset($version2_arr[$idx - 1]) ){
+        return 0; // Equals. version2 has been exausted inside the loop with zeros on version1.
     }
+    if( !isset($version2_arr[$idx]) ) {
+        return 0; // Equals. version2 and version1 have the same length and same values.
+    }
+
+    for( $i = $idx; $i < count($version2_arr); $i++ ){
+        if( $version2_arr[$i] > 0 ){
+            return -1;
+        }
+    }
+
+    return 0;
 
 
 }
@@ -134,22 +151,34 @@ function check_versions( $version1, $version2 ){
 
 // ....................... test 1
 $version1 = "5.2.3";
-$version2 = "5.2.3.0";
-echo "version1 : $version1, version2 : $version2.\n";
+$version2 = "5.2.3";
+echo "version1 : $version1, version2 : $version2. Expect : 0\n";
 echo "versions check test1: " . check_versions( $version1, $version2 ) ."\n\n";
 
 
 // ....................... test 2
 $version1 = "5.6.3";
 $version2 = "5.4.2.9";
-echo "version1 : $version1, version2 : $version2.\n";
+echo "version1 : $version1, version2 : $version2. Expect : 1\n";
 echo "versions check test1: " . check_versions( $version1, $version2 ) ."\n\n";
 
 
 // ....................... test 3
 $version1 = "5.3.3";
 $version2 = "5.4.2.9";
-echo "version1 : $version1, version2 : $version2.\n";
+echo "version1 : $version1, version2 : $version2. Expect : -1\n";
+echo "versions check test1: " . check_versions( $version1, $version2 ) ."\n\n";
+
+// ....................... test 4
+$version1 = "5.3.3.0.0.0.0.0";
+$version2 = "5.3.3";
+echo "version1 : $version1, version2 : $version2. Expect : 0\n";
+echo "versions check test1: " . check_versions( $version1, $version2 ) ."\n\n";
+
+// ....................... test 5
+$version1 = "5.3.3";
+$version2 = "5.3.3.0.0.0.0.0";
+echo "version1 : $version1, version2 : $version2. Expect : 0\n";
 echo "versions check test1: " . check_versions( $version1, $version2 ) ."\n\n";
 
 
