@@ -85,10 +85,10 @@ class Cash {
         // self::is_offlinemode is also missing ! the idea is to fall offline for a while before checking back on network.
         if( ! self::is_offlinemode && isset( self::$network_index[ $resource_key ] ) ){
 
-            // getResourceFromRemote is not defined here,
+            // self::getResourceFromRemote is not defined here,
             // It is supposed to grab the resource from network.
             // $resource_content passed by reference to the function.
-            $return_code = getResourceFromRemote( self::$network_index[ $resource_key ], $remote_resource_arr );
+            $return_code = self::getResourceFromRemote( self::$network_index[ $resource_key ], $remote_resource_arr );
 
             if( $return_code = 'network_is_down' ) {
                 // will have to set some local variables to manage offline mode and how long it will last ....
