@@ -25,8 +25,8 @@
 
 /*
 **
-**   Solution assumptions :
-**      -
+**
+**
 **
 **
 **
@@ -38,25 +38,26 @@
 
 class Cash {
 
-    // Array or resources, each resource is an array of two elements (name , last_used_datetime).
+    // Array or resources, each resource is an array of many attributes including [content].
     private static $cash_content = [];
 
-    private static $max_size = 10;
+    // The cache size. capacity
+    private static $max_size = 1000;
 
     private static $max_lifetime = 259200; // 3 days in seconds.
-    
+
     const MY_NETWORK_CREDENTIALS = '196.23.325.25:5566' // how to reach me.
 
-    
+
     // Shows, for each key, the nearest network location to find it.
     // Example : self::$network_index = [
     //        'resource_key1' => 'network_credential_1',
     //        'resource_key2' => 'network_credential_1',
     //         ...etc
     // ]
-    // We assume there is not caching to do with the index.
+    // We assume there is no caching to do over the index. (enough space for index)
     private static $network_index = [];
-    
+
 
     public function getSize(){
         // We assume the capacity limitation is linked only to the number of entries.
@@ -67,8 +68,8 @@ class Cash {
     public function addResource( $resource_key ){
 
         // Decide first if we should keep a local copy in cach for this resource.
-        // decide_on_copy() definition is missing, and no idea about its algorithme !!
-        $make_local_copy = self::decide_on_copy( $resource_key );
+        // decide_on_replication() definition is missing, and no idea about its algorithme !!
+        $make_local_copy = self::decide_on_replication( $resource_key );
 
         while( $make_local_copy && $this->getSize() >= self::$max_size ){
            $this->removeLRU();
@@ -79,45 +80,51 @@ class Cash {
         $d = new DateTime();
         $new_element['creation_timestamp'] = strtotime($d->format('Y-m-d\TH:i:s.u')); // value example. : 1362193965
 
-        
+
         // We check if this key is available in our network nodes, so we consult the index.
-        // self::is_offlinemode is also missing ! the idea is to fall offline for a while before checking back on network.        
-        if( self::is_offlinemode && isset( self::$network_index[ $resource_key ] ) ){
-            
-            // getResourceFromRemote is not defined here, 
+        // self::is_offlinemode is also missing ! the idea is to fall offline for a while before checking back on network.
+        if( ! self::is_offlinemode && isset( self::$network_index[ $resource_key ] ) ){
+
+            // getResourceFromRemote is not defined here,
             // It is supposed to grab the resource from network.
             // $resource_content passed by reference to the function.
-            $return_code = getResourceFromRemote( self::$network_index[ $resource_key ], $remote_resource_obj );
-            
+            $return_code = getResourceFromRemote( self::$network_index[ $resource_key ], $remote_resource_arr );
+
             if( $return_code = 'network_is_down' ) {
                 // will have to set some local variables to manage offline mode and how long it will last ....
                 // The call is static because network issues dont depend on instances !!
                 self::fall_offline_for_awhile();
+
+                // Offline mode algorithme will decide wether we can compute locally for this resource or
+                // to return an applicative error message showing NO DATA FOUND - TRY BACK LATER.
+                // decide_whether_to_dig() is missing.
+                return self::decide_whether_to_dig();
+
             } else {
-                $new_element['resource_content'] = $remote_resource_obj['resource_content'];
-                
+                $new_element['resource_content'] = $remote_resource_arr['resource_content'];
+
                 //update local index :
-                self::$network_index[ $resource_key ] = $remote_resource_obj['remote_network_credentials'];
+                self::$network_index[ $resource_key ] = $remote_resource_arr['remote_network_credentials'];
             }
         } else {
             // digVeryCostly() will return something big or interesting like an object !
             // and digVeryCostly() is the costly operation the cash is supposed to avoid.
             $new_element['resource_content'] = \Library1\Utility1::digVeryCostly( $resource_key );
-            
-            
+
+
             // This call will notify the other sites on network that the current site has
-            // this data calculated costly on local, so they will note dig for it, instead 
+            // this data calculated costly on local, so they will note dig for it, instead
             // they will ask the current site for it.
             // Every site (node) will have to update its index upon receipt of notification.
             notify_all_remote( $resource_key, self::MY_NETWORK_CREDENTIALS );
         }
 
-        
+
         if( $make_local_copy ) {
             self::$cash_content[ $resource_key ] = $new_element;
         }
-        
-        
+
+
         return $new_element['resource_content'];
 
 
@@ -125,15 +132,16 @@ class Cash {
 
 
     public function getResource( $resource_key ){
-        
-        
+
+
         if( !isset( self::$cash_content[$resource_key] ) ){
             return $this->addResource( $resource_key, $make_local_copy );
         }
 
         $d = new DateTime();
-        if( strtotime($d->format('Y-m-d\TH:i:s.u')) -
-            self::$cash_content[$resource_key]['creation_timestamp'] >
+        if( !self::is_offlinemode() &&  // We dont apply expiration logic if we are offline !
+            (strtotime($d->format('Y-m-d\TH:i:s.u')) -
+            self::$cash_content[$resource_key]['creation_timestamp']) >
             self::$max_lifetime
             ){
             // Resource has expired.
@@ -171,9 +179,9 @@ class Cash {
     // from a site that has just digged for a resource on his end.
     // it will be asyncrounous function called by a deamon-like programme ...
     public  function notification_received(){
-        
+
     }
-    
-    
+
+
 
 }
